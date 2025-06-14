@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ASK NAVA</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e1e; /* Dark grey */
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      align-items: center;
+    }
+
+    h2 {
+      margin: 20px 0 10px;
+      color: #4fc3f7;
+      letter-spacing: 1px;
+    }
+
+    #chat-box {
+      flex: 1;
+      width: 90%;
+      max-width: 900px;
+      background-color: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 15px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      margin-bottom: 10px;
+    }
+
+    #loading {
+      display: none;
+      font-style: italic;
+      color: gray;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    #input-area {
+      width: 90%;
+      max-width: 900px;
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      background-color: #333;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 4px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4fc3f7;
+      color: black;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .user-msg,
+    .ai-msg,
+    .meta-msg {
+      margin-top: 10px;
+    }
+
+    .label {
+      font-weight: bold;
+    }
+
+    .content {
+      font-weight: normal;
+    }
+
+    .meta-msg {
+      font-size: 13px;
+      color: #aaa;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h2>ASK NAVA</h2>
+  <div id="chat-box"></div>
+  <div id="loading">Nava is thinking<span id="dots">...</span></div>
+  <div id="input-area">
+    <input type="text" id="question" placeholder="Ask your question..." />
+    <button id="submit">Send</button>
+  </div>
+
+  <script>
+    const questionInput = document.getElementById("question");
+    const submitButton = document.getElementById("submit");
+    const chatBox = document.getElementById("chat-box");
+    const loading = document.getElementById("loading");
+    const dots = document.getElementById("dots");
+
+    let dotInterval;
+
+    function startLoading() {
+      loading.style.display = "block";
+      submitButton.disabled = true;
+      questionInput.disabled = true;
+      let dotCount = 0;
+      dotInterval = setInterval(() => {
+        dots.textContent = ".".repeat((dotCount++ % 4) + 1);
+      }, 500);
+    }
+
+    function stopLoading() {
+      clearInterval(dotInterval);
+      loading.style.display = "none";
+      submitButton.disabled = false;
+      questionInput.disabled = false;
+    }
+
+    async function sendQuestion() {
+      const question = questionInput.value.trim();
+      if (!question) return;
+
+      chatBox.innerHTML += `<div class="user-msg"><span class="label">🧑‍💻 You:</span><span class="content"> ${question}</span></div>`;
+      questionInput.value = "";
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      startLoading();
+      const startTime = performance.now();
+
+      try {
+        const response = await fetch("http://localhost:8000/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+        const endTime = performance.now();
+        const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+        chatBox.innerHTML += `<div class="ai-msg"><span class="label">🤖 Nava:</span><span class="content"> ${data.response}</span></div><div class="meta-msg">⏱️ Nava answered using Oracle database 23ai and IBM LLM Granite 8b in ${duration} sec</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+      } catch (err) {
+        chatBox.innerHTML += `<div class="ai-msg"><span class="label">❌ Error:</span><span class="content"> ${err.message}</span></div>`;
+      }
+
+      stopLoading();
+    }
+
+    submitButton.addEventListener("click", sendQuestion);
+    questionInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendQuestion();
+    });
+  </script>
+</body>
+</html>
+
