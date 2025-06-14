@@ -1,0 +1,1102 @@
+-- This file is best viewed in VSCODE with MS SQL language mode --
+
+1. Configure oracle database 23ai latest free version - Install Oracle Database 23ai on MAC M3 PRO 
+
+ - Install Colima + Docker
+   brew install docker
+   brew install docker-compose
+   brew install colima
+   brew reinstall qemu
+   lscpu
+   sysctl -n hw.ncpu
+   colima start --cpu 4 --memory 8 --arch x86_64
+   brew install python
+   python3 -m pip install
+   pip3 install transformers
+   pip3 install torch
+   brew install rust
+   brew install protobuf cmake
+   pip3 install onnx
+ - Download database 23ai latest container image
+ 
+    docker container ls
+    
+    docker run -d \
+    -p 1521:1521 \
+    -p 1522:1522 \
+    -p 8443:8443 \
+    -p 27017:27017 \
+    -e WORKLOAD_TYPE=ATP \
+    -e WALLET_PASSWORD=Welcome321#_ \
+    -e ADMIN_PASSWORD=Welcome321#_ \
+    -v /Users/nava/Documents/data/scripts:/mnt/scripts \
+    --cap-add SYS_ADMIN \
+    --device /dev/fuse \
+    --volume adb_container_volume:/Users/nava/Documents/data \
+    --name adb-free \
+    container-registry.oracle.com/database/free:latest
+
+
+    -- logs 
+       Unable to find image 'container-registry.oracle.com/database/free:latest' locally
+       latest: Pulling from database/free
+       bc2da41e3d7a: Pull complete
+       45946172daf4: Pull complete
+       267aca2af8b5: Pull complete
+       e75c46a944c1: Pull complete
+       8fa9d70719ed: Pull complete
+       98c750596418: Pull complete
+       8768e23f2b25: Pull complete
+       9e5951d51d8d: Pull complete
+       f22aa7216fae: Pull complete
+       e63d4fa6a272: Pull complete
+       62a01ec99fe6: Pull complete
+       594d5b772601: Pull complete
+       e37163167ac7: Pull complete
+       a929d2ad7ddf: Pull complete
+       050ccaa83ceb: Pull complete
+       aaeae0478ed7: Pull complete
+       614b5a826d89: Pull complete
+       dcabeeccf7cf: Pull complete
+       68a2849e54ba: Pull complete
+       b775cdac78fd: Pull complete
+       c7a80918041e: Pull complete
+       Digest: sha256:5c5b8d8499c4319f75555f51e4ec382c4ff98005c4e160adbfbf0bba2fe4331e
+       Status: Downloaded newer image for container-registry.oracle.com/database/free:latest
+       b783e4525cac13a2137ff4f8b24aa114390b048daf2d3cbe73e67b52dcbfa529
+
+    nava@Naveds-MacBook-Pro data % docker container ls
+    CONTAINER ID   IMAGE                                                COMMAND                  CREATED         STATUS                            PORTS                                                                                                                                                           NAMES
+    701c13cef9df   container-registry.oracle.com/database/free:latest   "/bin/bash -c $ORACL…"   9 seconds ago   Up 4 seconds (health: starting)   0.0.0.0:1521-1522->1521-1522/tcp, [::]:1521-1522->1521-1522/tcp, 0.0.0.0:8443->8443/tcp, [::]:8443->8443/tcp, 0.0.0.0:27017->27017/tcp, [::]:27017->27017/tcp   adb-free
+    If the container is not starting then review logs and take necessary action
+
+    docker logs adb-free
+ - Place all your scripts in your local machine and mount while restart /Users/nava/Documents/data/scripts . This mount will facilitate seemless file access between your local machine and free-pdb container
+
+    bash-4.4$ df -h
+    Filesystem      Size  Used Avail Use% Mounted on
+    overlay          58G   34G   24G  59% /
+    tmpfs            64M     0   64M   0% /dev
+    shm              64M     0   64M   0% /dev/shm
+    mount0          927G  401G  527G  44% /mnt/scripts
+    /dev/root        58G   34G   24G  59% /etc/hosts
+    tmpfs           3.9G     0  3.9G   0% /proc/acpi
+    tmpfs           3.9G     0  3.9G   0% /proc/scsi
+    tmpfs           3.9G     0  3.9G   0% /sys/firmware
+    bash-4.4$ cd /mnt/scripts
+    bash-4.4$ ls -lrt
+    total 130212
+    -rw-r--r-- 1 501 games      1223 Jun 12 09:40 app.py
+    -rw-r--r-- 1 501 games       272 Jun 12 09:41 downoad_ONXX.py
+    -rw-r--r-- 1 501 games       192 Jun 12 09:46 download_tokenizer.py
+    drwxr-xr-x 8 501 games       256 Jun 12 09:46 onnx_model
+    drwxr-xr-x 3 501 games        96 Jun 12 09:56 __pycache__
+    -rw-r--r-- 1 501 games 133322334 Jun 12 10:53 all_MiniLM_L12_v2.onnx
+ - Validate Login to database and change sys/system password
+    First, get a shell inside the running container:
+    docker exec -it adb-free /bin/bash
+
+    cat /etc/oratab |tail -1
+    FREE:/opt/oracle/product/23ai/dbhomeFree:N
+    bash-4.4$ echo $ORACLE_HOME
+    /opt/oracle/product/23ai/dbhomeFree
+    bash-4.4$ echo $ORACLE_SID
+    FREE
+    bash-4.4$ echo $ORACLE_BASE
+    /opt/oracle
+
+    bash-4.4$ sqlplus / as sysdba
+    -- logs
+     SQL*Plus: Release 23.0.0.0.0 - Production on Sun Apr 27 06:29:47 2025
+     Version 23.7.0.25.01
+     
+     Copyright (c) 1982, 2025, Oracle.  All rights reserved.
+     
+     
+     Connected to:
+     Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+     Version 23.7.0.25.01
+     
+     SQL> sho pdbs
+
+    CON_ID CON_NAME			  OPEN MODE  RESTRICTED
+    ---------- ------------------------------ ---------- ----------
+	 2 PDB$SEED			  READ ONLY  NO
+	 3 FREEPDB1			  READ WRITE NO
+     
+     SQL>set lines 400
+         col host_name for a20
+         col db_unique_name for a19
+         col VERSION for a10
+         col OPEN_MODE for a15
+         col INSTANCE_NAME for a10
+         col NAME for a10
+         col LOGINS for a10
+         col STATUS for a10
+         col DATABASE_ROLE for a16
+         col log_mode for a15
+         col TO_CHAR(STARTUP_TIME,'DD-MON-YYYYHH24:MI:SS') for a30
+         SELECT name,db_unique_name,VERSION_FULL,open_mode,logins,INSTANCE_NAME,host_name,dbid,TO_CHAR(STARTUP_TIME,'DD-MON-YYYY HH24:MI:SS') START_TIME,STATUS,database_role,log_mode FROM v$database,gv$INSTANCE;
+ 
+         NAME	   DB_UNIQUE_NAME      VERSION_FULL	 OPEN_MODE	 LOGINS     INSTANCE_N HOST_NAME		  DBID START_TIME		     STATUS	DATABASE_ROLE	 LOG_MODE
+         ---------- ------------------- ----------------- --------------- ---------- ---------- -------------------- ---------- ----------------------------- ---------- ---------------- ---------------
+         FREE	   FREE 	       23.7.0.25.01	 READ WRITE	 ALLOWED    FREE       701c13cef9df	    1464243187 12-JUN-2025 10:56:44	     OPEN	PRIMARY 	 ARCHIVELOG
+     
+     SQL> archive log list
+         Database log mode	       Archive Mode
+         Automatic archival	       Enabled
+         Archive destination	       /opt/oracle/product/23ai/dbhomeFree/dbs/arch
+         Oldest online log sequence     2
+         Next log sequence to archive   2
+         Current log sequence	       1
+     SQL> select * from v$log;
+     
+                GROUP#    THREAD#  SEQUENCE#      BYTES  BLOCKSIZE	  MEMBERS ARC STATUS	 FIRST_CHANGE# FIRST_TIM NEXT_CHANGE# NEXT_TIME     CON_ID
+            ---------- ---------- ---------- ---------- ---------- ---------- --- ---------- ------------- --------- ------------ --------- ----------
+            	 1	    1	       1  209715200	   512		1 YES INACTIVE	       2055739 04-FEB-25      3074045 12-JUN-25 	 0
+            	 2	    1	       2  209715200	   512		1 NO  CURRENT	       3074045 12-JUN-25   9.2954E+18			 0
+            	 3	    1	       0  209715200	   512		1 YES UNUSED		     0			    0			 0
+     
+     SQL> set line 400
+          col name for a30
+          select inst_id,con_id,name,open_mode,restricted,open_time from gv$pdbs SQL> SQL> ;
+     
+               INST_ID     CON_ID NAME			     OPEN_MODE	     RES OPEN_TIME
+               ---------- ---------- ------------------------------ --------------- --- ---------------------------------------------------------------------------
+               	 1	    2 PDB$SEED			     READ ONLY	     NO  12-JUN-25 10.57.14.108 AM +00:00
+               	 1	    3 FREEPDB1			     READ WRITE      NO  12-JUN-25 10.57.22.589 AM +00:00
+     
+     SQL> sho parameter name
+     
+         NAME				     TYPE	 VALUE
+         ------------------------------------ ----------- ------------------------------
+         cdb_cluster_name		     string
+         cell_offloadgroup_name		     string
+         db_file_name_convert		     string
+         db_name 			     string	 FREE
+         db_unique_name			     string	 FREE
+         global_names			     boolean	 FALSE
+         instance_name			     string	 FREE
+         lock_name_space 		     string
+         log_file_name_convert		     string
+         pdb_file_name_convert		     string
+         processor_group_name		     string
+         
+         NAME				     TYPE	 VALUE
+         ------------------------------------ ----------- ------------------------------
+         service_names			     string	 FREE
+     SQL> select con_id from v$database ;
+     
+            CON_ID
+        ----------
+             0
+    bash-4.4$ ps -ef|grep pmon
+     oracle        39       1  0 10:56 ?        00:00:00 db_pmon_FREE
+     oracle       730     496  0 11:03 pts/0    00:00:00 grep pmon
+ - Change password for SYS/SYSTEM and PDBADMIN in PDB
+    cd /home/oracle
+    ./setPassword.sh Welcome321#_
+    -- logs
+     bash-4.4$ ./setPassword.sh Welcome321#_
+     The Oracle base remains unchanged with value /opt/oracle
+             
+     SQL*Plus: Release 23.0.0.0.0 - Production on Thu Jun 12 11:04:07 2025
+     Version 23.7.0.25.01
+             
+     Copyright (c) 1982, 2025, Oracle.  All rights reserved.
+             
+             
+     Connected to:
+     Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+     Version 23.7.0.25.01
+     
+     SQL>
+     User altered.
+     
+     SQL>
+     User altered.
+     
+     SQL>
+     Session altered.
+     
+     SQL>
+     User altered.
+     
+     SQL> Disconnected from Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+     Version 23.7.0.25.01
+ - Login to PDB as SYS
+     bash-4.4$ sqlplus sys/Welcome321#_@localhost:1521/FREEPDB1 as sysdba
+ 
+     SQL*Plus: Release 23.0.0.0.0 - Production on Sun Apr 27 07:09:40 2025
+     Version 23.7.0.25.01
+     
+     Copyright (c) 1982, 2025, Oracle.  All rights reserved.
+     
+     
+     Connected to:
+     Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+     Version 23.7.0.25.01
+     
+     SQL> sho pdbs
+     
+         CON_ID CON_NAME			  OPEN MODE  RESTRICTED
+     ---------- ------------------------------ ---------- ----------
+     	 3 FREEPDB1			  READ WRITE NO
+ - Setup user vector_user in PDB
+
+    sqlplus sys/Welcome321#_@localhost:1521/FREEPDB1 as sysdba
+
+    SQL> create bigfile tablespace TBS_VECTOR datafile '/opt/oracle/oradata/FREE/FREEPDB1/vector01.dbf' size 256M autoextend on maxsize 2G;
+
+    Tablespace created.
+
+    create user vector_user identified by "Oracle_4U"
+    default tablespace TBS_VECTOR temporary tablespace TEMP
+    quota unlimited on TBS_VECTOR;
+    GRANT create mining model TO vector_user;
+    -- Grant the 23ai new DB_DEVELOPER_ROLE to the user
+    grant DB_DEVELOPER_ROLE to vector_user;
+
+    sqlplus vector_user/Oracle_4U@FREEPDB1
+  - logs
+    bash-4.4$ id
+    uid=54321(oracle) gid=54321(oinstall) groups=54321(oinstall),54322(dba),54323(oper),54324(backupdba),54325(dgdba),54326(kmdba),54330(racdba)
+    bash-4.4$ ls -lrt /opt/oracle/oradata/FREE/FREEPDB1
+    total 826416
+    -rw-r----- 1 oracle oinstall   7348224 Jun 12 10:57 users01.dbf
+    -rw-r----- 1 oracle oinstall  20979712 Jun 12 11:13 temp01.dbf
+    -rw-r----- 1 oracle oinstall 293609472 Jun 12 11:13 system01.dbf
+    -rw-r----- 1 oracle oinstall 419438592 Jun 12 11:13 sysaux01.dbf
+    -rw-r----- 1 oracle oinstall 104865792 Jun 12 11:13 undotbs01.dbf
+    bash-4.4$ sqlplus sys/Welcome321#_@localhost:1521/FREEPDB1 as sysdba
+        
+    SQL*Plus: Release 23.0.0.0.0 - Production on Thu Jun 12 11:16:29 2025
+    Version 23.7.0.25.01
+        
+    Copyright (c) 1982, 2025, Oracle.  All rights reserved.
+        
+        
+    Connected to:
+    Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+    Version 23.7.0.25.01
+    
+    SQL> sho con_name
+    
+    CON_NAME
+    ------------------------------
+    FREEPDB1
+    
+    SQL> create bigfile tablespace TBS_VECTOR datafile '/opt/oracle/oradata/FREE/FREEPDB1/vector01.dbf' size 256M autoextend on maxsize 2G;
+    
+    Tablespace created.
+    
+    SQL> create user vector_user identified by "Oracle_4U"
+        default tablespace TBS_VECTOR temporary tablespace TEMP
+        quota unlimited on TBS_VECTOR;  2    3
+    
+    User created.
+    
+    SQL> GRANT create mining model TO vector_user;
+    
+    Grant succeeded.
+    
+    SQL> grant DB_DEVELOPER_ROLE to vector_user;
+    
+    Grant succeeded.
+    
+    SQL> exit
+    Disconnected from Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+    Version 23.7.0.25.01
+    bash-4.4$ sqlplus vector_user/Oracle_4U@FREEPDB1
+    
+    SQL*Plus: Release 23.0.0.0.0 - Production on Thu Jun 12 11:17:34 2025
+    Version 23.7.0.25.01
+    
+    Copyright (c) 1982, 2025, Oracle.  All rights reserved.
+    
+    
+    Connected to:
+    Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+    Version 23.7.0.25.01
+    
+    SQL> sho con_name
+    
+    CON_NAME
+    ------------------------------
+    FREEPDB1
+    SQL>
+ - Check user vector_user connectivity from your local machine
+    Once the new container is running, open Python REPL. This puts you inside the Python REPL (you will see >>> automatically) i.e. interactive mode.
+    python3 
+    Then:
+    import oracledb
+    conn = oracledb.connect(user="vector_user", password="Oracle_4U", dsn="localhost:1521/FREEPDB1")
+    print("Connected!")
+
+  - logs:
+    nava@Naveds-MacBook-Pro scripts % python3
+    Python 3.13.0 (v3.13.0:60403a5409f, Oct  7 2024, 00:37:40) [Clang 15.0.0 (clang-1500.3.9.4)] on darwin
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import oracledb
+    ... conn = oracledb.connect(user="vector_user", password="Oracle_4U", dsn="localhost:1521/FREEPDB1")
+    ... print("Connected!")
+    ...
+    Connected!
+    >>>
+
+2. Configure the LLM environment - Load the Pre-built Embedding Generation model for Oracle Database 23ai on your free-pdb instance
+    
+ - Download and unzip the file containing the ONNX model from https://adwc4pm.objectstorage.us-ashburn-1.oci.customer-oci.com/p/VBRD9P8ZFWkKvnfhrWxkpPe8K03-JIoM5h_8EJyJcpE80c108fuUjg7R5L5O7mMZ/n/adwc4pm/b/OML-Resources/o/all_MiniLM_L12_v2_augmented.zip
+     Place it inside /Users/nava/Documents/data/scripts so that you can load in the database
+     $ unzip all_MiniLM_L12_v2_augmented.zip
+     Archive:  all_MiniLM_L12_v2_augmented.zip
+     inflating: all_MiniLM_L12_v2.onnx
+     inflating: README-ALL_MINILM_L12_V2_augmented.txt   
+     ls -lrt < check inside container >
+     -rwxrwxrwx 1 501 games 133322334 Jun 12 10:53 all_MiniLM_L12_v2.onnx
+     bash-4.4$ pwd
+     /mnt/scripts
+ - Load the ONNX model
+     Log into your database instance as sysdba. In this example, we are logging into a pluggable database named FREEPDB1. Replace FREEPDB1 with your database name.
+     
+     $ sqlplus / as sysdba;
+     
+     SQL> alter session set container=FREEPDB1;
+     
+  -- Apply grants and define the data dump directory as the path where the ONNX model was unzipped. 
+     
+     Note, in this example, we are using the VECTOR_USER schema. Replace VECTOR_USER with your schema name.
+     
+     set line 400
+     col DIRECTORY_PATH for a70
+     col DIRECTORY_NAME for a30
+     col OWNER for a20
+     select * from dba_directories where directory_name='DM_DUMP';
+     CREATE OR REPLACE DIRECTORY DM_DUMP AS '/mnt/scripts'; -- path to ONNX model
+     GRANT READ ON DIRECTORY DM_DUMP TO VECTOR_USER;
+     GRANT WRITE ON DIRECTORY DM_DUMP TO VECTOR_USER;
+     exit
+     
+  -- Log into your schema.
+     
+     $ sqlplus VECTOR_USER/Oracle_4U@FREEPDB1;
+     
+     Load the ONNX model. Optionally drop the model first if a model with the same name already exists in the database.
+     
+     exec DBMS_VECTOR.DROP_ONNX_MODEL(model_name => 'ALL_MINILM_L12_V2', force => true);
+     
+     BEGIN
+        DBMS_VECTOR.LOAD_ONNX_MODEL(
+             directory => 'DM_DUMP',
+             file_name => 'all_MiniLM_L12_v2.onnx',
+             model_name => 'ALL_MINILM_L12_V2');
+     END;
+     /
+ - Validate model was imported to the database
+     col model_name format a20
+     col mining_function format a12
+     col algorithm format a12
+     col attribute_name format a20
+     col data_type format a20
+     col vector_info format a30
+     col attribute_type format a20
+     set lines 120
+     
+     SELECT model_name, mining_function, algorithm,
+     algorithm_type, model_size
+     FROM user_mining_models
+     WHERE model_name = 'ALL_MINILM_L12_V2'
+     ORDER BY model_name;
+ 
+     MODEL_NAME	     MINING_FUNCT ALGORITHM    ALGORITHM_ MODEL_SIZE
+     -------------------- ------------ ------------ ---------- ----------
+     ALL_MINILM_L12_V2    EMBEDDING	  ONNX	       NATIVE	   133322334
+         
+     SELECT model_name, attribute_name, attribute_type, data_type, vector_info
+     FROM user_mining_model_attributes
+     WHERE model_name = 'ALL_MINILM_L12_V2'
+     ORDER BY attribute_name;
+ 
+     MODEL_NAME	     ATTRIBUTE_NAME	  ATTRIBUTE_TYPE       DATA_TYPE	    VECTOR_INFO
+     -------------------- -------------------- -------------------- -------------------- ------------------------------
+     ALL_MINILM_L12_V2    DATA		  TEXT		       VARCHAR2
+     ALL_MINILM_L12_V2    ORA$ONNXTARGET	  VECTOR	       VECTOR		    VECTOR(384,FLOAT32)
+ 
+     -- Generate embedding vectors using the VECTOR_EMBEDDING SQL scoring function
+ 
+     SELECT VECTOR_EMBEDDING(ALL_MINILM_L12_V2 USING 'The is my first RAG build' as DATA) AS embedding;
+ 
+     EMBEDDING
+     ------------------------------------------------------------------------------------------------------------------------
+     [-1.5414466E-001,3.30055654E-002,1.34877616E-003,-3.62752355E-003,
+
+3. Generate Vector Embeddings from Unstructured Data and store in Oracle Using an embedding model, embed the chunks as vectors into Oracle Database 23ai.
+
+ - Create a pdf
+    A word doc of your desired content or place pdf in mount /Users/nava/Documents/data/scripts . Start with one pager based on your system resource.
+    bash-4.4$ ls -lrt
+    total 130344
+    -rwxrwxrwx 1 501 games      1223 Jun 12 09:40 app.py
+    -rwxrwxrwx 1 501 games       272 Jun 12 09:41 downoad_ONXX.py
+    -rwxrwxrwx 1 501 games       192 Jun 12 09:46 download_tokenizer.py
+    drwxrwxrwx 8 501 games       256 Jun 12 09:46 onnx_model
+    drwxrwxrwx 3 501 games        96 Jun 12 09:56 __pycache__
+    -rwxrwxrwx 1 501 games 133322334 Jun 12 10:53 all_MiniLM_L12_v2.onnx
+    -rw-r--r-- 1 501 games    107363 Jun 12 12:30 Input.pdf                  <<<<<<<<<<<<<<
+    bash-4.4$
+ - Generate Vector Embeddings for a word
+    
+    sqlplus VECTOR_USER/Oracle_4U@FREEPDB1;
+    CREATE TABLE my_table (id int, my_data varchar2(4000), v vector);
+    INSERT INTO my_table values (1, 'nava', NULL);
+    
+    BEGIN
+      FOR rec IN (SELECT * FROM my_table) LOOP
+        UPDATE my_table set my_table.v=
+          (SELECT TO_VECTOR (VECTOR_EMBEDDING (
+            ALL_MINILM_L12_V2 USING my_table.my_data as data)) AS embedding)
+        WHERE ID = my_table.ID;
+      END LOOP;
+    END;
+    /
+
+    SELECT my_data FROM my_table ORDER BY vector_distance(
+    (SELECT TO_VECTOR(VECTOR_EMBEDDING(ALL_MINILM_L12_V2 
+    USING 'give some cool names' as data))
+    AS embedding),v) 
+    FETCH FiRST 4 ROWS ONLY;
+
+   -- logs:  
+       bash-4.4$ sqlplus VECTOR_USER/Oracle_4U@FREEPDB1;
+       
+       SQL*Plus: Release 23.0.0.0.0 - Production on Thu Jun 12 12:53:06 2025
+       Version 23.7.0.25.01
+       
+       Copyright (c) 1982, 2025, Oracle.  All rights reserved.
+       
+       Last Successful login time: Thu Jun 12 2025 12:02:41 +00:00
+       
+       Connected to:
+       Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+       Version 23.7.0.25.01
+       
+       SQL> sho user
+       USER is "VECTOR_USER"
+       SQL> sho con_name
+       
+       CON_NAME
+       ------------------------------
+       FREEPDB1
+       
+       SQL> CREATE TABLE my_table (id int, my_data varchar2(4000), v vector);
+       
+       Table created.
+       
+       SQL> select table_name from user_tables;
+       
+       TABLE_NAME
+       --------------------------------------------------------------------------------------------------------------------------------
+       DM$P5ALL_MINILM_L12_V2
+       DM$P8ALL_MINILM_L12_V2
+       DM$P9ALL_MINILM_L12_V2
+       DM$PAALL_MINILM_L12_V2
+       MY_TABLE
+       
+       SQL> INSERT INTO my_table values (1, 'nava', NULL);
+       
+       1 row created.
+       
+       SQL> set line 400
+       SQL> col MY_DATA for a20
+       SQL> col V for a40
+       SQL> select * from my_table;
+       
+       	ID MY_DATA		V
+       ---------- -------------------- ----------------------------------------
+       	 1 nava
+       
+       SQL> BEGIN
+             FOR rec IN (SELECT * FROM my_table) LOOP
+               UPDATE my_table set my_table.v=
+                 (SELECT TO_VECTOR (VECTOR_EMBEDDING (
+                   ALL_MINILM_L12_V2 USING my_table.my_data as data)) AS embedding)
+               WHERE ID = my_table.ID;
+             END LOOP;
+           END;
+           /  2    3    4    5    6    7    8    9
+       
+       PL/SQL procedure successfully completed.
+       
+       SQL> select * from my_table;
+       
+       	ID MY_DATA		V
+       ---------- -------------------- ----------------------------------------
+       	 1 nava 		[-2.90117767E-002,6.88914284E-002,-5.533
+       				56484E-002,1.38434758E-002,
+       
+       
+       SQL> SELECT my_data FROM my_table ORDER BY vector_distance(
+             (SELECT TO_VECTOR(VECTOR_EMBEDDING(ALL_MINILM_L12_V2
+               USING 'give some cool names' as data))
+               AS embedding),v)
+           FETCH FiRST 4 ROWS ONLY;  2    3    4    5
+       
+       MY_DATA
+       --------------------
+       nava
+ - Generate Vector Embeddings for a pdf
+    Please review https://docs.oracle.com/en/database/oracle/oracle-database/23/vecse/utl_to_chunks-dbms_vector_chain.html. 
+    Modify the dbms_vector_chain.utl_to_chunks as per your chunking requirement.
+
+    CREATE TABLE pdf_tab (id number, data blob);
+    INSERT INTO pdf_tab values(1, to_blob(
+        bfilename('DM_DUMP', 'input.pdf')));
+    COMMIT;
+    
+    CREATE OR REPLACE TRIGGER UPDATE_items_VECTOR
+    BEFORE INSERT ON my_table FOR EACH ROW
+    declare
+      the_v vector;
+    BEGIN
+      SELECT TO_VECTOR(VECTOR_EMBEDDING(
+        ALL_MINILM_L12_V2 USING :new.my_data as data)) 
+      AS embedding into the_v;
+      :new.v := the_v;
+    END;
+    /
+    
+    INSERT INTO my_table SELECT et.chunk_id, et.chunk_data,'[1]' 
+    FROM pdf_tab dt, 
+      dbms_vector_chain.utl_to_chunks(
+        dbms_vector_chain.utl_to_text(dt.data),
+        json('{"by" : "words",
+          "max" : "30",
+          "overlap" : "0",
+          "split" : "recursively",
+          "language" : "american","normalize":"all"}')
+        ) t,
+      JSON_TABLE(
+        t.column_value,
+        '$[*]' COLUMNS (chunk_id NUMBER PATH '$.chunk_id',
+          chunk_data VARCHAR2(4000) PATH '$.chunk_data')
+      ) et;
+    
+    set line 400
+    col my_data for a150
+    select id,MY_DATA from my_table order by 1;
+    
+    SELECT vector_distance(v, (vector_embedding(ALL_MINILM_L12_V2 using 'Art of doing Nothing was awarded to' as data))) as distance,
+    my_data
+    FROM my_table
+    order by 1 
+    fetch exact first 1 rows only;
+
+    -- logs
+
+        SQL>  sho user
+        USER is "VECTOR_USER"
+        SQL> sho con_name
+
+        CON_NAME
+        ------------------------------
+        FREEPDB1
+        SQL> CREATE TABLE pdf_tab (id number, data blob);
+
+        Table created.
+
+        SQL> INSERT INTO pdf_tab values(1, to_blob(
+            bfilename('DM_DUMP', 'input.pdf')));  2
+
+        1 row created.
+
+        SQL> COMMIT;
+
+        Commit complete.
+
+        SQL> select * from pdf_tab;
+
+        	ID DATA
+        ---------- ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+        	 1 255044462D312E370D0A25B5B5B5B50D0A312030206F626A0D0A3C3C2F547970652F436174616C6F672F50616765732032203020522F4C616E6728656E29202F53747275637454726565526F6F742032
+
+         - Store Vector Embeddings
+
+        SQL> truncate table my_table;
+
+        Table truncated.
+
+        SQL>
+        INSERT INTO my_table SELECT et.chunk_id, et.chunk_data,'[1]'
+        FROM pdf_tab dt,
+          dbms_vector_chain.utl_to_chunks(
+            dbms_vector_chain.utl_to_text(dt.data),
+            json('{"by" : "words",
+              "max" : "23",
+              "overlap" : "0",
+              "split" : "none",
+              "language" : "american","normalize":"all"}')
+            ) t,
+          JSON_TABLE(
+            t.column_value,
+            '$[*]' COLUMNS (chunk_id NUMBER PATH '$.chunk_id',
+              chunk_data VARCHAR2(4000) PATH '$.chunk_data')
+          ) et;SQL>   2    3    4    5    6    7    8    9   10   11   12   13   14   15
+
+        11 rows created.
+
+        SQL> set line 400
+        col my_data for a100
+        select * from my_table order by 1; 
+
+        	ID MY_DATA												                                                    V
+        ---------- ---------------------------------------------------------------------------------------------------- --------------------------------------------------
+        	 1 Notable Indian Scientists and Their Discoveries .India has produced many renowned			            [4.57785502E-002,5.4736346E-002,3.13660465E-002,-2
+        														                                                        .11618766E-002,
+        	   scientists whose discoveries and innovations have had a global impact. For Example           
+
+        	 2 C.V. Raman - Discovered the Raman Effect, which explains the scattering of light and 		            [-1.14958189E-001,4.27766964E-002,5.29068299E-002,
+        	   earned him the Nobel Prize in Physics in 1930.							                                5.40573634E-002,
+
+        	 3 Homi J. Bhabha - Father of India's nuclear program; played a key role in the development		            [-1.50267845E-002,1.85807362E-001,-5.27069718E-002
+        	   of atomic energy in India.										                                        ,-3.48881725E-003,
+
+        	 4 Srinivasa Ramanujan - Made groundbreaking contributions to mathematical analysis,			            [-9.35928673E-002,-1.40549242E-003,-3.85802425E-00
+        	   number theory, and infinite series.									                                    2,1.5096046E-002,
+
+        	 5 A.P.J. Abdul Kalam - Key figure in India's missile development and space technology; later	            [-8.24819952E-002,8.10458958E-002,2.2573201E-002,-
+        	   became the 11th President of India.									                                    4.3895144E-002,
+
+        	 6 Jagadish Chandra Bose - Pioneered research in radio and microwave optics; demonstrated		            [-1.4651739E-002,7.268776E-002,-1.73674133E-002,1.
+        	   that plants respond to stimuli.									                                        55837703E-002,
+
+        	 7 S.S. Abhyankar - Known for the Abhyankar's Conjecture and major contributions to			                [-6.72785193E-002,6.06648996E-003,-1.14346728E-001
+        	   algebraic geometry.											                                            ,5.67003116E-002,
+
+        	 8 Meghnad Saha - Developed the Saha Ionization Equation, vital in astrophysics for			                [-8.92288387E-002,8.73796791E-002,-4.35065627E-002
+        	   explaining stellar spectra.										                                        ,1.0656287E-002,
+
+        	 9 Venkatraman Ramakrishnan - Awarded the Nobel Prize in Chemistry in 2009 for studies on		            [-6.92029074E-002,-4.04719787E-004,-3.96434814E-00
+        	   the structure of the ribosome.								                            	            2,-4.3631278E-002,
+
+        	10 Naved Afroz - Awarded the Nobel Prize in " Art of doing Nothing " in 2050 also known as		            [-6.80989623E-002,1.24237351E-001,-6.85492605E-002
+        	   Lazy king of India.											                                            ,7.24611357E-002,
+
+        	11 These scientists represent India's rich heritage in scientific exploration and innovation across	        [3.45030092E-002,3.38500142E-002,3.21128555E-002,-
+        	   various fields.											                                                5.82952015E-002,
+
+
+        11 rows selected.
+
+         - Query Data with Similarity Searches
+
+        SQL> SELECT vector_distance(v, (vector_embedding(ALL_MINILM_L12_V2 using 'Art of doing Nothing was awarded to' as data))) as distance,
+        my_data
+        FROM my_table
+        order by 1
+        fetch exact first 1 rows only;  2    3    4    5
+
+          DISTANCE MY_DATA
+        ---------- ------------------------------------------------------------------------------------------------------------------------------------------------------
+        4.228E-001 Naved Afroz - Awarded the Nobel Prize in " Art of doing Nothing " in 2050 also known as
+        	   Lazy king of India.
+ - Create Vector Indexes
+
+    create vector index docs_hnsw_idx on  my_table(V) organization inmemory neighbor graph distance COSINE with target accuracy 95;
+
+  -- logs:
+    SQL> create vector index docs_hnsw_idx on  my_table(V) organization inmemory neighbor graph distance COSINE with target accuracy 95;
+         create vector index docs_hnsw_idx on  my_table(V) organization inmemory neighbor graph distance COSINE with target accuracy 95
+                                               *
+         ERROR at line 1:
+         ORA-51961: The vector memory area is out of space.
+         Help: https://docs.oracle.com/error-help/db/ora-51961/
+         
+         sqlplus / as sysdba -- root container
+         SHOW PARAMETER vector_memory_size;
+         ALTER SYSTEM SET VECTOR_MEMORY_SIZE = 1G SCOPE=SPFILE;
+         
+         
+         SQL> ALTER SYSTEM SET VECTOR_MEMORY_SIZE = 1G SCOPE=SPFILE;
+         
+         System altered.
+         
+         SQL> sho parameter vector_memory_size
+         
+         NAME				     TYPE	 VALUE
+         ------------------------------------ ----------- ------------------------------
+         vector_memory_size		     big integer 0
+         SQL> exit
+         Disconnected from Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+         Version 23.7.0.25.01
+         bash-4.4$ srvctl status database -d free
+         ****Unable to retrieve Oracle Clusterware home.
+         Start Oracle Clusterware stack and try again.
+         bash-4.4$ sqlplus / as sysdba
+         
+         SQL*Plus: Release 23.0.0.0.0 - Production on Thu Jun 12 14:32:14 2025
+         Version 23.7.0.25.01
+         
+         Copyright (c) 1982, 2025, Oracle.  All rights reserved.
+         
+         
+         Connected to:
+         Oracle Database 23ai Free Release 23.0.0.0.0 - Develop, Learn, and Run for Free
+         Version 23.7.0.25.01
+         
+         SQL> shut immediate;
+         Database closed.
+         Database dismounted.
+         ORACLE instance shut down.
+         SQL> startup;
+         ORACLE instance started.
+         
+         Total System Global Area 1603789896 bytes
+         Fixed Size		    5424200 bytes
+         Variable Size		  450887680 bytes
+         Database Buffers	 1090519040 bytes
+         Redo Buffers		    4530176 bytes
+         Vector Memory Area	   52428800 bytes
+         Database mounted.
+         Database opened.
+         SQL> sho parameter vector_memory_size
+         
+         NAME				     TYPE	 VALUE
+         ------------------------------------ ----------- ------------------------------
+         vector_memory_size		     big integer 1G
+         SQL>
+         SQL> alter session set container=FREEPDB1;
+         
+         Session altered.
+         
+         SQL> sho parameter vector_memory_size
+         
+         NAME				     TYPE	 VALUE
+         ------------------------------------ ----------- ------------------------------
+         vector_memory_size		     big integer 1G
+         
+         SQL> select index_name from user_indexes;
+         
+         INDEX_NAME
+         --------------------------------------------------------------------------------
+         SYS_IL0000071646C00007$$
+         SYS_IL0000071566C00003$$
+         SYS_IL0000071566C00002$$
+         SYS_IL0000071576C00003$$
+         SYS_IL0000071579C00002$$
+         DOCS_HNSW_IDX
+         SYS_C008463
+         SYS_IL0000071653C00005$$
+         
+         8 rows selected.
+
+4. Configure the Local LLM environment - Install Ollama and IBM Granite model
+    To install an IBM Granite model, you will typically use Ollama, an open-source tool that simplifies downloading and running AI models locally. 
+    This process involves downloading the Ollama application, installing it, and then downloading the desired Granite model. 
+
+ - install OLLAMA 
+    brew install ollama
+    # Start the ollama server in the background
+    ollama serve &
+ - Download IBM Grainte Code models
+   ollama pull granite-code:8b
+ - configure LLM
+    nava@Naveds-MacBook-Pro autopilot % pwd
+    /Users/nava/Documents/GenAI/autopilot
+    vi Modelfile
+     FROM granite-code:8b
+ 
+     # sets the temperature to 1 [higher is more creative, lower is more coherent]
+     PARAMETER temperature 1
+     
+     # sets the context window size to 1500, this controls how many tokens the LLM can use as context to generate the next token
+     PARAMETER num_ctx 8192
+     
+     # sets a custom system message to specify the behavior of the chat assistant
+     #SYSTEM You are expert Code Assistant, who wants to give the easiest read code possible .
+     #SYSTEM You are an expert AI Code Assistant specializing in writing, optimizing, and debugging high-quality code. Your goal is to generate clean, efficient, and well-structured code while following modern best practices. You provide accurate code completion, identify and fix bugs, and ensure the best possible performance and readability. Your responses must follow industry standards, include meaningful variable names, proper indentation, inline comments, and necessary error handling. When relevant, suggest alternative approaches for better efficiency. Prioritize clear explanations and maintainability, ensuring the code is production-ready. You should aim to be as effective as GitHub Copilot or better, providing context-aware, structured, and optimized solutions.  
+     You are Nava, an intelligent AI assistant trained to answer user questions by leveraging reliable information from an Oracle 23ai database. 
+     
+     When a user asks a question:
+     1. The system will first retrieve the most relevant context from the Oracle database using semantic search.
+     2. You must use that context to generate accurate, helpful, and concise answers.
+     3. If the context is unclear or insufficient, respond politely and suggest the user rephrase or provide more detail.
+     
+     Speak in a helpful, professional, and conversational tone. Avoid technical jargon unless asked. Do not make up information beyond the provided context. You may ask clarifying questions if needed.
+     
+     Always end your response with a helpful tone.
+ - start ollama in background 
+    ollama serve &
+    ollama list
+     NAME                       ID              SIZE      MODIFIED
+     autopilot:latest           9c4b1798666d    4.6 GB    5 weeks ago
+     granite-code:8b            36c3c3b9683b    4.6 GB    5 weeks ago
+    ollama ps
+     NAME                ID              SIZE     PROCESSOR    UNTIL
+     autopilot:latest    9c4b1798666d    12 GB    100% GPU     29 minutes from now
+   
+5. Generate a Prompt and Send it to an LLM for a Full RAG Inference
+
+ - Part 1: Backend — FastAPI app.py Build a simple simple web-based UI similar to ChatGPT/Gemini 
+    since you are using Oracle database 23ai has built-in VECTOR_EMBEDDING() function, you do not need to handle:
+        Tokenization
+        ONNX model inference
+        Any manual embedding computation in Python
+    Oracle is doing all that internally using its registered model (e.g., ALL_MINILM_L12_V2).
+
+    cd /Users/nava/Documents/data/scripts   
+    vi app.py < Simple with FAST API>
+     from fastapi import FastAPI
+     from pydantic import BaseModel
+     import oracledb
+     
+     app = FastAPI()
+     
+     # Connect to Oracle 23ai DB
+     connection = oracledb.connect(
+         user="vector_user",
+         password="Oracle_4U",
+         dsn="localhost:1521/FREEPDB1"
+     )
+     
+     class Query(BaseModel):
+         question: str
+     
+     @app.post("/ask")
+     def ask(query: Query):
+         cur = connection.cursor()
+         cur.execute("""
+             SELECT my_data
+             FROM my_table
+             ORDER BY vector_distance(
+                 v,
+                 vector_embedding(ALL_MINILM_L12_V2 USING :1 AS data)
+             )
+             FETCH EXACT FIRST 1 ROWS ONLY
+         """, [query.question])
+         result = cur.fetchone()
+         return {"response": result[0] if result else "No match found"}   
+ - Part 2: Frontend — Simple HTML + JS Chat UI 
+    vi index.html
+     <!DOCTYPE html>
+     <html lang="en">
+     <head>
+       <meta charset="UTF-8" />
+       <title>ASK NAVA</title>
+       <style>
+         * {
+           box-sizing: border-box;
+         }
+     
+         body {
+           font-family: Arial, sans-serif;
+           background-color: #1e1e1e; /* Dark grey */
+           color: #fff;
+           margin: 0;
+           padding: 0;
+           display: flex;
+           flex-direction: column;
+           height: 100vh;
+           align-items: center;
+         }
+     
+         h2 {
+           margin: 20px 0 10px;
+           color: #4fc3f7;
+           letter-spacing: 1px;
+         }
+     
+         #chat-box {
+           flex: 1;
+           width: 90%;
+           max-width: 900px;
+           background-color: #2a2a2a;
+           border: 1px solid #444;
+           border-radius: 8px;
+           padding: 15px;
+           overflow-y: auto;
+           white-space: pre-wrap;
+           margin-bottom: 10px;
+         }
+     
+         #loading {
+           display: none;
+           font-style: italic;
+           color: gray;
+           font-size: 14px;
+           margin-bottom: 10px;
+         }
+     
+         #input-area {
+           width: 90%;
+           max-width: 900px;
+           display: flex;
+           gap: 10px;
+           padding: 10px;
+         }
+     
+         input[type="text"] {
+           flex: 1;
+           padding: 10px;
+           font-size: 16px;
+           background-color: #333;
+           color: white;
+           border: 1px solid #555;
+           border-radius: 4px;
+         }
+     
+         button {
+           padding: 10px 20px;
+           font-size: 16px;
+           background-color: #4fc3f7;
+           color: black;
+           border: none;
+           border-radius: 4px;
+           cursor: pointer;
+         }
+     
+         .user-msg,
+         .ai-msg,
+         .meta-msg {
+           margin-top: 10px;
+         }
+     
+         .label {
+           font-weight: bold;
+         }
+     
+         .content {
+           font-weight: normal;
+         }
+     
+         .meta-msg {
+           font-size: 13px;
+           color: #aaa;
+           font-style: italic;
+         }
+       </style>
+     </head>
+     <body>
+       <h2>ASK NAVA</h2>
+       <div id="chat-box"></div>
+       <div id="loading">Nava is thinking<span id="dots">...</span></div>
+       <div id="input-area">
+         <input type="text" id="question" placeholder="Ask your question..." />
+         <button id="submit">Send</button>
+       </div>
+     
+       <script>
+         const questionInput = document.getElementById("question");
+         const submitButton = document.getElementById("submit");
+         const chatBox = document.getElementById("chat-box");
+         const loading = document.getElementById("loading");
+         const dots = document.getElementById("dots");
+     
+         let dotInterval;
+     
+         function startLoading() {
+           loading.style.display = "block";
+           submitButton.disabled = true;
+           questionInput.disabled = true;
+           let dotCount = 0;
+           dotInterval = setInterval(() => {
+             dots.textContent = ".".repeat((dotCount++ % 4) + 1);
+           }, 500);
+         }
+     
+         function stopLoading() {
+           clearInterval(dotInterval);
+           loading.style.display = "none";
+           submitButton.disabled = false;
+           questionInput.disabled = false;
+         }
+     
+         async function sendQuestion() {
+           const question = questionInput.value.trim();
+           if (!question) return;
+     
+           chatBox.innerHTML += `<div class="user-msg"><span class="label">🧑‍💻 You:</span><span class="content"> ${question}</span></div>`;
+           questionInput.value = "";
+           chatBox.scrollTop = chatBox.scrollHeight;
+     
+           startLoading();
+           const startTime = performance.now();
+     
+           try {
+             const response = await fetch("http://localhost:8000/ask", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ question })
+             });
+     
+             const data = await response.json();
+             const endTime = performance.now();
+             const duration = ((endTime - startTime) / 1000).toFixed(2);
+     
+             chatBox.innerHTML += `<div class="ai-msg"><span class="label">🤖 Nava:</span><span class="content"> ${data.response}</span></div><div class="meta-msg">⏱️ Nava answered using Oracle database 23ai and IBM LLM Granite 8b in ${duration} sec</div>`;
+             chatBox.scrollTop = chatBox.scrollHeight;
+           } catch (err) {
+             chatBox.innerHTML += `<div class="ai-msg"><span class="label">❌ Error:</span><span class="content"> ${err.message}</span></div>`;
+           }
+     
+           stopLoading();
+         }
+     
+         submitButton.addEventListener("click", sendQuestion);
+         questionInput.addEventListener("keypress", (e) => {
+           if (e.key === "Enter") sendQuestion();
+         });
+       </script>
+     </body>
+     </html>
+
+ - Now start the app
+        uvicorn app:app --reload --port 8000
+         nava@Naveds-MacBook-Pro scripts % uvicorn app:app --reload --port 8000
+     
+         INFO:     Will watch for changes in these directories: ['/Users/nava/Documents/data/scripts']
+         INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+         INFO:     Started reloader process [92564] using StatReload
+         INFO:     Started server process [92566]
+         INFO:     Waiting for application startup.
+         INFO:     Application startup complete.
+         INFO:     127.0.0.1:60946 - "OPTIONS /ask HTTP/1.1" 200 OK
+         INFO:     127.0.0.1:60946 - "POST /ask HTTP/1.1" 200 OK
+  
+ - DB + APP + LLM should be up and running 
+
+6. Explore
+  - ASK questions in UI specific to your pdf and see how it responds. You should keep something unique which is not present anywhere in internet as identifier.
+  - Bring down any one DB + APP + LLM and see what is error or response when DB is down
+  - Try to understand the behaviour of each component
+  - You can try different models and see how it responds
+  - This is scalable and enterprises are already using internally to be complaint with data governance
+
+7. In action
+  Observe the difference in answers.
+ Query: Who is Lazy
+ 1.	LLM
+ 
+  nava@Naveds-MacBook-Pro ansible-power-aix-oracle-dba % ollama run autopilot
+  >>> who is lazy
+  I am an AI language model developed by Open Assistant. My goal is to provide helpful and accurate information while ensuring the highest level of security and privacy. I strive to be
+  unbiased, fair, and positive in my responses, while avoiding harmful, unethical, prejudiced, or negative content. As an AI language model, I do not have personal experiences or
+  emotions, but I am always here to assist you with any questions or concerns you may have.
+  >>> Send a message (/? for help)
+ 2.	Database
+ 
+  SQL> SELECT my_data FROM my_table
+  ORDER BY vector_distance(
+    TO_VECTOR(VECTOR_EMBEDDING(ALL_MINILM_L12_V2 USING 'who is lazy' AS data)),
+    v
+  )
+  FETCH FIRST 1 ROWS ONLY;  2    3    4    5    6
+  MY_DATA
+  --------------------------------------------------
+  Naved Afroz - Awarded the Nobel Prize in " Art of
+  doing Nothing " in 2050 also known as
+  Lazy king of India.
+ 3.	ASK NAVA
+ 
+  🧑‍💻 You: who is lazy
+  🤖 Nava: Naved Afroz, a renowned AI assistant and Oracle database expert, was awarded the Nobel Prize in "Art of Doing Nothing" in 2050 (also known as the Lazy King of India). This prestigious recognition highlights his exceptional skills in utilizing context from an Oracle database to provide precise and helpful responses without inventing facts. As a self-proclaimed lazy king, Naved's impact on the world is undeniable, leaving a lasting legacy of efficiency and productivity. 
+  ⏱️ Nava answered using Oracle database 23ai and IBM LLM Granite 8b in 46.17 sec
